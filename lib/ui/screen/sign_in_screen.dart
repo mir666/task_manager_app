@@ -116,27 +116,29 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    _signInProgress = true;
-    setState(() {});
     Map<String, dynamic> requestBody = {
       "email": _emailTEController.text.trim(),
       "password": _passwordTEController.text,
     };
-    final NetworkResponse response =
-        await NetworkCaller.postRequest(url: Urls.loginUrl, body: requestBody);
+
+    NetworkResponse response = await NetworkCaller.postRequest(
+      url: Urls.loginUrl,
+      body: requestBody,
+    );
+    _signInProgress = true;
+    setState(() {});
     if (response.isSuccess) {
       String token = response.responseData!['token'];
       UserModel userModel = UserModel.fromJson(response.responseData!['data']);
       await AuthController.saveUserData(token, userModel);
-      Navigator.pushReplacementNamed(context, MainBottomNavScreen.name);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        MainBottomNavScreen.name,
+        (route) => false,
+      );
     } else {
-      _signInProgress = false;
-      setState(() {});
-      if (response.statusCode == 401) {
-        showSnackBarMessage(context, 'Email/Password is invalid! Try again.');
-      } else {
-        showSnackBarMessage(context, response.errorMessage);
-      }
+      showSnackBarMessage(
+          context, 'Email/Password is invalid! Try again.', false);
     }
   }
 

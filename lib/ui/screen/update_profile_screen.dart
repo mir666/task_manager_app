@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:task_manager_app/data/model/user_model.dart';
 import 'package:task_manager_app/data/services/network_callers.dart';
 import 'package:task_manager_app/data/utils/urls.dart';
 import 'package:task_manager_app/ui/controllers/auth_controller.dart';
@@ -112,7 +113,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     replacement: const CenteredCircularProgressIndicator(),
                     child: ElevatedButton(
                       onPressed: _onTapUpdateButton,
-                      child: const Icon(Icons.arrow_circle_right_outlined),
+                      child: const Icon(
+                        Icons.arrow_circle_right_outlined,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ],
@@ -172,6 +177,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   void _onTapUpdateButton() {
     if (_formKey.currentState!.validate()) {
       _updateProfile();
+      setState(() {});
     }
   }
 
@@ -199,8 +205,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     setState(() {});
     if (response.isSuccess) {
       _passwordTEController.clear();
+      showSnackBarMessage(context, "Profile Update successful!", true);
+      if (requestBody['photo'] == null) {
+        requestBody['photo'] = AuthController.userModel?.photo;
+      }
+      AuthController.updateUserData(UserModel.fromJson(requestBody));
     } else {
-      showSnackBarMessage(context, response.errorMessage);
+      showSnackBarMessage(context, response.errorMessage, false);
     }
   }
 

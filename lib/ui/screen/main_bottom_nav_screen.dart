@@ -14,13 +14,12 @@ class MainBottomNavScreen extends StatefulWidget {
 }
 
 class _MainBottomNavScreenState extends State<MainBottomNavScreen> {
-
   int _selectedIndex = 0;
-  List<Widget> _screens = [
-    NewTaskListScreen(),
-    ProgressTaskListScreen(),
-    CompleteTaskListScreen(),
-    CancelledTaskListScreen(),
+  final List<Widget> _screens = [
+    const NewTaskListScreen(),
+    const ProgressTaskListScreen(),
+    const CompleteTaskListScreen(),
+    const CanceledTaskListScreen(),
   ];
 
   @override
@@ -29,13 +28,13 @@ class _MainBottomNavScreenState extends State<MainBottomNavScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (int index){
+        onDestinationSelected: (int index) {
           _selectedIndex = index;
           setState(() {});
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.task_outlined  ),
+            icon: Icon(Icons.task_outlined),
             label: 'New Task',
           ),
           NavigationDestination(

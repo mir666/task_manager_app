@@ -85,9 +85,15 @@ class TaskManagerApp extends StatelessWidget {
         } else if (setting.name == ForgetPasswordVerifyEmailScreen.name) {
           widget = const ForgetPasswordVerifyEmailScreen();
         } else if (setting.name == ForgetPasswordVerifyOtpScreen.name) {
-          widget = const ForgetPasswordVerifyOtpScreen();
+          final String gmail = setting.arguments as String;
+          widget = const ForgetPasswordVerifyOtpScreen(
+            email: AutofillHints.email,
+          );
         } else if (setting.name == ResetPasswordScreen.name) {
-          widget = const ResetPasswordScreen();
+          final Map emailAndOtp = setting.arguments as Map;
+          widget = ResetPasswordScreen(
+            emailAndOtp: emailAndOtp,
+          );
         } else if (setting.name == MainBottomNavScreen.name) {
           widget = const MainBottomNavScreen();
         } else if (setting.name == AddNewTaskScreen.name) {

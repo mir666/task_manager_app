@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_manager_app/data/model/user_model.dart';
 
@@ -23,6 +24,12 @@ class AuthController {
     String? userData = sharedPreferences.getString(_userDataKey);
     accessToken = token;
     userModel = UserModel.fromJson(jsonDecode(userData!));
+  }
+
+  static Future<void> updateUserData(UserModel model) async {
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    await sharedPreferences.setString(_userDataKey, jsonEncode(model.toJson()));
+    userModel = model;
   }
 
   static Future<bool> isUserLoggedIn() async {

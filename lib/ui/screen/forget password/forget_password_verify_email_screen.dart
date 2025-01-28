@@ -1,8 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:task_manager_app/data/services/network_callers.dart';
+import 'package:task_manager_app/data/utils/urls.dart';
 import 'package:task_manager_app/ui/screen/forget%20password/forget_password_verify_otp_screen.dart';
 import 'package:task_manager_app/ui/utils/app_colors.dart';
 import 'package:task_manager_app/ui/widget/screen_background.dart';
+import 'package:task_manager_app/ui/widget/show_snack_bar_message.dart';
 
 class ForgetPasswordVerifyEmailScreen extends StatefulWidget {
   const ForgetPasswordVerifyEmailScreen({super.key});
@@ -18,6 +21,8 @@ class _ForgetPasswordVerifyEmailScreenState
     extends State<ForgetPasswordVerifyEmailScreen> {
   final TextEditingController _emailTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  bool _InProgress = true;
 
   @override
   Widget build(BuildContext context) {
@@ -54,12 +59,16 @@ class _ForgetPasswordVerifyEmailScreenState
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, ForgetPasswordVerifyOtpScreen.name);
-                    },
-                    child: const Icon(
-                      Icons.arrow_circle_right_outlined,
-                    ),
+                    onPressed: _InProgress == true ? _verifyEmailButton : null,
+                    child: _InProgress == true
+                        ? const Icon(
+                            Icons.arrow_circle_right_outlined,
+                            color: Colors.white,
+                            size: 24,
+                          )
+                        : const CircularProgressIndicator(
+                            color: AppColors.themeColor,
+                          ),
                   ),
                   const SizedBox(height: 32),
                   Center(
@@ -98,6 +107,35 @@ class _ForgetPasswordVerifyEmailScreenState
         ],
       ),
     );
+  }
+
+  void _verifyEmailButton() {
+    if (_formKey.currentState!.validate()) {
+      _InProgress = false;
+      setState(() {});
+      _verifyEmail();
+    }
+  }
+
+  Future<void> _verifyEmail() async {
+    NetworkResponse response = await NetworkCaller.getRequest(
+        url: Urls.emailVerify(_emailTEController.text.trim()));
+    _InProgress = true;
+    if (response.isSuccess) {
+      if (response.responseData!['status'] == 'fail') {
+        showSnackBarMessage(context, "No User Found", false);
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          ForgetPasswordVerifyOtpScreen.name,
+          arguments: _emailTEController.text.trim(),
+        );
+      }
+    } else {
+      showSnackBarMessage(context, response.errorMessage, false);
+    }
+
+    setState(() {});
   }
 
   @override

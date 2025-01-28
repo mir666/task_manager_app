@@ -5,6 +5,7 @@ import 'package:task_manager_app/data/model/task_list_by_status_model.dart';
 import 'package:task_manager_app/data/services/network_callers.dart';
 import 'package:task_manager_app/data/utils/urls.dart';
 import 'package:task_manager_app/ui/screen/task/add_new_task_screen.dart';
+import 'package:task_manager_app/ui/utils/app_colors.dart';
 import 'package:task_manager_app/ui/widget/centered_circular_progress_indicator.dart';
 import 'package:task_manager_app/ui/widget/screen_background.dart';
 import 'package:task_manager_app/ui/widget/show_snack_bar_message.dart';
@@ -27,9 +28,9 @@ class _NewTaskListScreenState extends State<NewTaskListScreen> {
 
   @override
   void initState() {
+    // TODO: implement initState
     super.initState();
-    _getTaskCountByStatus();
-    _getNewTaskList();
+    _getTaskCountByStatus(true);
   }
 
   @override
@@ -40,24 +41,39 @@ class _NewTaskListScreenState extends State<NewTaskListScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              _buildTasksSummaryByStatus(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Visibility(
-                    visible: _getNewTaskListInProgress == false,
-                    replacement: const CenteredCircularProgressIndicator(),
-                    child: _buildTaskListView()),
-              ),
+              _buildTaskSummaryByStatus(),
+              _buildNewTaskListview(),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.themeColor,
         onPressed: () {
-          Navigator.pushNamed(context, AddNewTaskScreen.name);
+          Navigator.pushNamed(context, AddNewTaskScreen.name).then(
+            (value) {
+              if (value == true) {
+                _getTaskCountByStatus(true);
+                print(value);
+              }
+            },
+          );
         },
-        child: const Icon(Icons.add),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+        ),
       ),
+    );
+  }
+
+  Widget _buildNewTaskListview() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Visibility(
+          visible: _getNewTaskListInProgress == false,
+          replacement: const CenteredCircularProgressIndicator(),
+          child: _buildTaskListView()),
     );
   }
 
@@ -65,29 +81,36 @@ class _NewTaskListScreenState extends State<NewTaskListScreen> {
     return ListView.builder(
       shrinkWrap: true,
       primary: false,
+      padding: const EdgeInsets.only(bottom: 80),
       itemCount: newTaskListModel?.taskList?.length ?? 0,
       itemBuilder: (context, index) {
         return TaskItemWidget(
+          onTabDelete: () {
+            _deleteTaskItem(index);
+          },
+          onTabChangeStatus: (status) {
+            _upgradeStatus(index, status);
+          },
           taskModel: newTaskListModel!.taskList![index],
         );
       },
     );
   }
 
-  Widget _buildTasksSummaryByStatus() {
+  Widget _buildTaskSummaryByStatus() {
     return Visibility(
       visible: _getTaskCountByStatusInProgress == false,
       replacement: const CenteredCircularProgressIndicator(),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 2),
         child: SizedBox(
-          height: 100,
+          height: 90,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: taskCountByStatusModel?.taskByStatusList?.length ?? 0,
             itemBuilder: (context, index) {
               final TaskCountModel model =
-              taskCountByStatusModel!.taskByStatusList![index];
+                  taskCountByStatusModel!.taskByStatusList![index];
               return TaskStatusSummaryCounterWidget(
                 title: model.sId ?? '',
                 count: model.sum.toString(),
@@ -99,16 +122,20 @@ class _NewTaskListScreenState extends State<NewTaskListScreen> {
     );
   }
 
-  Future<void> _getTaskCountByStatus() async {
-    _getTaskCountByStatusInProgress = true;
+  Future<void> _getTaskCountByStatus(bool _inprogress) async {
+    _getTaskCountByStatusInProgress = _inprogress;
     setState(() {});
     final NetworkResponse response =
-    await NetworkCaller.getRequest(url: Urls.taskCountByStatusUrl);
+        await NetworkCaller.getRequest(url: Urls.taskCountByStatusUrl);
     if (response.isSuccess) {
       taskCountByStatusModel =
           TaskCountByStatusModel.fromJson(response.responseData!);
+      if (taskCountByStatusModel?.taskByStatusList?.length != 0 &&
+          _inprogress == true) {
+        _getNewTaskList();
+      }
     } else {
-      showSnackBarMessage(context, response.errorMessage);
+      showSnackBarMessage(context, response.errorMessage, false);
     }
     _getTaskCountByStatusInProgress = false;
     setState(() {});
@@ -118,13 +145,49 @@ class _NewTaskListScreenState extends State<NewTaskListScreen> {
     _getNewTaskListInProgress = true;
     setState(() {});
     final NetworkResponse response =
-    await NetworkCaller.getRequest(url: Urls.taskListByStatusUrl('New'));
+        await NetworkCaller.getRequest(url: Urls.taskListByStatusUrl('New'));
     if (response.isSuccess) {
       newTaskListModel = TaskListByStatusModel.fromJson(response.responseData!);
     } else {
-      showSnackBarMessage(context, response.errorMessage);
+      showSnackBarMessage(context, response.errorMessage, false);
     }
     _getNewTaskListInProgress = false;
     setState(() {});
+  }
+
+  Future<void> _deleteTaskItem(int index) async {
+    final String? _taskId = newTaskListModel!.taskList![index].sId;
+    showSnackBarMessage(context, "Deleting....", true);
+
+    NetworkResponse response =
+        await NetworkCaller.getRequest(url: Urls.deleteUrl(_taskId!));
+    if (response.isSuccess) {
+      showSnackBarMessage(context, "Task Deleted", true);
+      newTaskListModel?.taskList?.removeAt(index);
+      _getTaskCountByStatus(false);
+      setState(() {});
+    } else {
+      showSnackBarMessage(context, response.errorMessage, false);
+    }
+  }
+
+  Future<void> _upgradeStatus(int index, String status) async {
+    final String? _taskId = newTaskListModel!.taskList![index].sId;
+
+    if (status == "New") {
+      showSnackBarMessage(context, "You are in 'New status'.", false);
+    } else {
+      showSnackBarMessage(context, "status updating.....", true);
+      NetworkResponse response = await NetworkCaller.getRequest(
+          url: Urls.UpgradeTask(_taskId!, status));
+      if (response.isSuccess) {
+        showSnackBarMessage(context, "Task Update", true);
+        newTaskListModel?.taskList?.removeAt(index);
+        _getTaskCountByStatus(false);
+        setState(() {});
+      } else {
+        showSnackBarMessage(context, response.errorMessage, false);
+      }
+    }
   }
 }
