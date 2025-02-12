@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:task_manager_app/data/model/task_list_by_status_model.dart';
-import 'package:task_manager_app/data/services/network_callers.dart';
-import 'package:task_manager_app/data/utils/urls.dart';
+import 'package:task_manager_app/data/model/task_model.dart';
+import 'package:task_manager_app/ui/controllers/cancelled_task_controller.dart';
+import 'package:task_manager_app/ui/controllers/delete_task_controller.dart';
+import 'package:task_manager_app/ui/controllers/upgrade_status_controller.dart';
 import 'package:task_manager_app/ui/widget/centered_circular_progress_indicator.dart';
 import 'package:task_manager_app/ui/widget/screen_background.dart';
 import 'package:task_manager_app/ui/widget/show_snack_bar_message.dart';
@@ -16,8 +19,10 @@ class CanceledTaskListScreen extends StatefulWidget {
 }
 
 class _CanceledTaskListScreenState extends State<CanceledTaskListScreen> {
-  bool _getCanceledTaskListInProgress = false;
   TaskListByStatusModel? canceledTaskListModel;
+  final CancelledTaskController _cancelledTaskController = Get.find<CancelledTaskController>();
+  final DeleteTaskController _deleteTaskController = Get.find<DeleteTaskController>();
+  final UpgradeStatusController _upgradeStatusController = Get.find<UpgradeStatusController>();
 
   @override
   void initState() {
@@ -39,76 +44,62 @@ class _CanceledTaskListScreenState extends State<CanceledTaskListScreen> {
   Widget _buildCanceledTaskListview() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Visibility(
-          visible: _getCanceledTaskListInProgress == false,
-          replacement: const CenteredCircularProgressIndicator(),
-          child: _buildTaskListView()),
+      child: GetBuilder<CancelledTaskController>(
+        builder: (controller) {
+          return Visibility(
+              visible: controller.inProgress == false,
+              replacement: const CenteredCircularProgressIndicator(),
+              child: _buildTaskListView(controller.taskList));
+        }
+      ),
     );
   }
 
-  Widget _buildTaskListView() {
+  Widget _buildTaskListView(List<TaskModel> taskList) {
     return ListView.builder(
-      itemCount: canceledTaskListModel?.taskList?.length ?? 0,
+      itemCount: taskList.length,
       padding: const EdgeInsets.symmetric(vertical: 10),
       itemBuilder: (context, index) {
         return TaskItemWidget(
           onTabChangeStatus: (status) {
-            _upgradeStatus(index, status);
+            _upgradeStatus(index, status, taskList);
           },
           onTabDelete: () {
-            _deleteTaskItem(index);
+            _deleteTaskItem(index, taskList);
           },
-          taskModel: canceledTaskListModel!.taskList![index],
+          taskModel: taskList[index],
         );
       },
     );
   }
 
   Future<void> _getCanceledTaskList() async {
-    _getCanceledTaskListInProgress = true;
-    setState(() {});
-    final NetworkResponse response =
-        await NetworkCaller.getRequest(url: Urls.taskListByStatusUrl('Cancel'));
-    if (response.isSuccess) {
-      canceledTaskListModel =
-          TaskListByStatusModel.fromJson(response.responseData!);
-    } else {
-      showSnackBarMessage(context, response.errorMessage, false);
+    final isSuccess = await _cancelledTaskController.getCanceledTaskList();
+    if (!isSuccess) {
+      showSnackBarMessage(context, _cancelledTaskController.errorMessage!, false);
     }
-    _getCanceledTaskListInProgress = false;
-    setState(() {});
   }
 
-  Future<void> _deleteTaskItem(int index) async {
-    final String? _taskId = canceledTaskListModel!.taskList![index].sId;
+  Future<void> _deleteTaskItem(int index, List<TaskModel> taskList) async {
+    final isSuccess = await _deleteTaskController.deleteTaskItem(index, taskList);
     showSnackBarMessage(context, "Deleting....", true);
-
-    NetworkResponse response =
-        await NetworkCaller.getRequest(url: Urls.deleteUrl(_taskId!));
-    if (response.isSuccess) {
+    if (isSuccess) {
       showSnackBarMessage(context, "Task Deleted", true);
-      canceledTaskListModel?.taskList?.removeAt(index);
-      setState(() {});
     } else {
-      showSnackBarMessage(context, response.errorMessage, false);
+      showSnackBarMessage(context, _deleteTaskController.errorMessage!, false);
     }
   }
 
-  Future<void> _upgradeStatus(int index, String status) async {
+  Future<void> _upgradeStatus(int index, String status, List<TaskModel> taskList) async {
+    final isSuccess = await _upgradeStatusController.upgradeStatus(index, status, taskList);
     if (status == "Cancel") {
       showSnackBarMessage(context, "You are in 'Cancel status'.", false);
     } else {
       showSnackBarMessage(context, "status updating.....", true);
-      final String? _taskId = canceledTaskListModel!.taskList![index].sId;
-
-      NetworkResponse response = await NetworkCaller.getRequest(
-          url: Urls.UpgradeTask(_taskId!, status));
-      if (response.isSuccess) {
+      if (isSuccess) {
         showSnackBarMessage(context, "Task Update", true);
-        canceledTaskListModel?.taskList?.removeAt(index);
-        setState(() {});
       } else {
-        showSnackBarMessage(context, response.errorMessage, false);
+        showSnackBarMessage(context, _upgradeStatusController.errorMessage!, false);
       }
     }
   }

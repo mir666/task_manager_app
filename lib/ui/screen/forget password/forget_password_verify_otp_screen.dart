@@ -1,9 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_manager_app/data/services/network_callers.dart';
 import 'package:task_manager_app/data/utils/urls.dart';
+import 'package:task_manager_app/ui/controllers/otp_verify_controller.dart';
 import 'package:task_manager_app/ui/screen/forget%20password/reset_password_screen.dart';
 import 'package:task_manager_app/ui/screen/sign_in_screen.dart';
 import 'package:task_manager_app/ui/utils/app_colors.dart';
@@ -27,7 +29,9 @@ class _ForgetPasswordVerifyOtpScreenState
     extends State<ForgetPasswordVerifyOtpScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _otpController = TextEditingController();
-  bool _isLoading = false;
+  bool _inProgress = false;
+  int otpLength = 0;
+  final OtpVerifyController _otpVerifyController = Get.find<OtpVerifyController>();
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,7 @@ class _ForgetPasswordVerifyOtpScreenState
                   _buildPinCodeTextField(context),
                   const SizedBox(height: 24),
                   Visibility(
-                    visible: _isLoading == false,
+                    visible: _inProgress == false,
                     replacement: const CenteredCircularProgressIndicator(),
                     child: ElevatedButton(
                       onPressed: () {
@@ -139,11 +143,7 @@ class _ForgetPasswordVerifyOtpScreenState
             ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  SignInScreen.name,
-                  (value) => false,
-                );
+                Get.offAllNamed(SignInScreen.name);
               },
           ),
         ],
@@ -151,45 +151,19 @@ class _ForgetPasswordVerifyOtpScreenState
     );
   }
 
+
   Future<void> _verifyOTP() async {
-    final otp = _otpController.text.trim();
+    final isSuccess = await _otpVerifyController.verifyOTP('email', _otpController.text.trim());
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('email');
-
-      final NetworkResponse response = await NetworkCaller.getRequest(
-        url: Urls.otpVerify(email.toString(), otp),
-      );
-
-      if (response.isSuccess) {
-        if (response.responseData!['status'] == 'success') {
-          //final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(email.toString(), otp);
-
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            ResetPasswordScreen.name,
-            (value) => false,
-          );
-          debugPrint('Email => $email');
-          debugPrint('OTP => $otp');
-        } else {
-          showSnackBarMessage(context, response.responseData!['status'], false);
-        }
-      } else {
-        showSnackBarMessage(context, response.errorMessage, false);
-      }
-    } catch (e) {
-      showSnackBarMessage(context, e.toString(), true);
+    if (!isSuccess) {
+      showSnackBarMessage(context, _otpVerifyController.errorMessage!, false);
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
 }

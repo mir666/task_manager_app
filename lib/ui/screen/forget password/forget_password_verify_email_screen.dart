@@ -1,8 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:task_manager_app/data/services/network_callers.dart';
-import 'package:task_manager_app/data/utils/urls.dart';
-import 'package:task_manager_app/ui/screen/forget%20password/forget_password_verify_otp_screen.dart';
+import 'package:get/get.dart';
+import 'package:task_manager_app/ui/controllers/email_verify_controller.dart';
 import 'package:task_manager_app/ui/utils/app_colors.dart';
 import 'package:task_manager_app/ui/widget/screen_background.dart';
 import 'package:task_manager_app/ui/widget/show_snack_bar_message.dart';
@@ -23,6 +22,8 @@ class _ForgetPasswordVerifyEmailScreenState
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   bool _InProgress = true;
+
+  final EmailVerifyController _emailVerifyController = Get.find<EmailVerifyController>();
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +102,8 @@ class _ForgetPasswordVerifyEmailScreenState
             ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
-                Navigator.pop(context);
+                //Navigator.pop(context);
+                Get.back();
               },
           ),
         ],
@@ -118,24 +120,10 @@ class _ForgetPasswordVerifyEmailScreenState
   }
 
   Future<void> _verifyEmail() async {
-    NetworkResponse response = await NetworkCaller.getRequest(
-        url: Urls.emailVerify(_emailTEController.text.trim()));
-    _InProgress = true;
-    if (response.isSuccess) {
-      if (response.responseData!['status'] == 'fail') {
-        showSnackBarMessage(context, "No User Found", false);
-      } else {
-        Navigator.pushReplacementNamed(
-          context,
-          ForgetPasswordVerifyOtpScreen.name,
-          arguments: _emailTEController.text.trim(),
-        );
-      }
-    } else {
-      showSnackBarMessage(context, response.errorMessage, false);
+    final isSuccess = await _emailVerifyController.verifyEmail(_emailTEController.text.trim());
+    if (!isSuccess) {
+      showSnackBarMessage(context, _emailVerifyController.errorMessage!, false);
     }
-
-    setState(() {});
   }
 
   @override
